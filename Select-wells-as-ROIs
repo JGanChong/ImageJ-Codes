@@ -1,0 +1,11 @@
+//Make binary
+run("Convert to Mask");
+
+//Close circles
+run("Dilate");
+
+//invert colors to select for inside
+run("Invert");
+
+//select for only round objects within this size (wells)
+run("Analyze Particles...", "size=200-Infinity circularity=0.70-1.00 add");
