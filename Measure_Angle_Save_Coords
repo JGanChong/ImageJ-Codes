@@ -1,0 +1,20 @@
+//Tested with Fiji ImageJ version 1.53c, Java 1.8.0_172 (64bits)
+
+//Get coordinates from angle tool
+getSelectionCoordinates(xpoints, ypoints);
+
+//find angle
+angle=getValue("Angle");
+row = nResults;
+
+//set angle, coordinates in result table
+setResult("Angle", row, angle);
+
+setResult("x1", row, xpoints[0]);
+setResult("y1", row, ypoints[0]);
+
+setResult("x2", row, xpoints[1]);
+setResult("y2", row, ypoints[1]);
+
+setResult("x3", row, xpoints[2]);
+setResult("y3", row, ypoints[2]);
