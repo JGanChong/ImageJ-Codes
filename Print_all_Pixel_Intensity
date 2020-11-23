@@ -1,0 +1,23 @@
+var xval, yval;
+
+setOption("ExpandableArrays", true);
+xval = newArray;
+yval = newArray;
+
+p=0;
+getDimensions(width, height, channels, slices, frames);
+for (i = 1; i <= width; i++) {
+	for (h = 1; h <= height; h++) {
+		brigthness = getPixel(i, h);
+		if (brigthness != 0) {
+			xval[p] = i;
+			yval[p] = h;
+			p++;
+		}
+	}
+}
+
+Array.print(xval);
+Array.print(yval);
+both=Array.concat(xval,yval);
+Array.print(both);
