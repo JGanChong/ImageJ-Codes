@@ -1,0 +1,55 @@
+/*
+ * Macro template to process multiple images in a folder
+ */
+
+#@ File (label = "Input directory", style = "directory") input
+#@ File (label = "Output directory", style = "directory") output
+#@ String (label = "File suffix", value = ".tif") suffix
+
+// See also Process_Folder.py for a version of this code
+// in the Python scripting language.
+
+processFolder(input);
+
+// function to scan folders/subfolders/files to find files with correct suffix
+function processFolder(input) {
+	list = getFileList(input);
+	list = Array.sort(list);
+	for (i = 0; i < list.length; i++) {
+		if(File.isDirectory(input + File.separator + list[i]))
+			processFolder(input + File.separator + list[i]);
+		if(endsWith(list[i], suffix))
+			processFile(input, output, list[i]);
+	}
+}
+
+function processFile(input, output, file) {
+
+open(input+File.separator+list[i]);
+
+name = getTitle();
+NoExt = File.nameWithoutExtension;
+
+
+Stack.getDimensions(width, height, channels, slices, frames);
+run("Split Channels");
+for (i = 1; i <= channels; i++) {
+
+selectImage("C"+i+"-"+name);
+chname = getTitle();
+
+run("Bleach Correction", "correction=[Histogram Matching] background=5");
+selectImage(chname);
+
+close();
+
+
+
+
+}
+
+
+run("Merge Channels...", "c1=DUP_C2-"+name+" c2=DUP_C1-"+name+"  create ignore");
+saveAs('tif', output+File.separator +'DUP_'+name);
+close("*");
+}
