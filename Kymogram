@@ -1,0 +1,212 @@
+pixel= 4;
+halfpixel= pixel/2;
+boxwidth = 4;
+hboxwidth = boxwidth/2;
+image = getTitle();
+
+Stack.getDimensions(width, height, channels, slices, frames);
+totalFrames = frames;
+
+getSelectionCoordinates(xpoints, ypoints);
+
+
+Array.getStatistics(xpoints, xmin, xmax, xmean, xstdDev);
+Array.getStatistics(ypoints, ymin, ymax, ymean, ystdDev);
+
+
+
+xInterval = (xmax-xmin)/totalFrames;
+yInterval = (ymax-ymin)/totalFrames;
+
+width = xmax-xmin;
+height = ymax-ymin;
+
+halfwidth = width/2;
+halfheight = height/2;
+
+
+//Get x kymo
+
+for(c = 1; c<=channels; c++){
+	x=xmin-boxwidth;
+	y=ypoints[0]-halfpixel;
+	for (i = 1; i <= totalFrames; i++) {
+		
+		selectImage(image);
+		Stack.setFrame(i);
+		makeRectangle(x, y, width+boxwidth, pixel);
+		code =toString(c)+toString(i);
+		if (channels==1) {
+			run("Duplicate...", "title=XR"+code+" duplicate range="+i+"-"+i);
+		}
+		else{
+			run("Duplicate...", "title=XR"+code+" duplicate channels="+c+" frames="+i);
+		}
+		
+		
+		
+		if (ypoints[0]>ypoints[1]) {
+			y=y-yInterval;			
+		}
+	
+		else {
+			y=y+yInterval;		
+		}
+
+		
+		
+
+	}
+} 
+for(c = 1; c<=channels; c++){
+	
+	run("Images to Stack", "method=[Copy (center)] name=Stack"+c+" title=XR"+c+" use");
+	selectImage("Stack"+c);
+	run("Make Montage...", "columns=1 rows="+frames+" scale=1");
+	rename("FixedX");
+	close("Stack"+c);
+}
+
+
+
+//y Kymo
+run("Select None");
+selectImage(image);
+
+for(c = 1; c<=channels; c++){
+	x=xpoints[0]-halfpixel;
+	y=ymin-boxwidth;
+		
+	for (i = 1; i <= totalFrames; i++) {
+		
+		selectImage(image);
+		Stack.setFrame(i);
+		makeRectangle(x, y, pixel, width+boxwidth);
+		code =toString(c)+toString(i);
+		if (channels==1) {
+			run("Duplicate...", "title=XR"+code+" duplicate range="+i+"-"+i);
+		}
+		else{
+			run("Duplicate...", "title=XR"+code+" duplicate channels="+c+" frames="+i);
+		}
+		
+		
+		
+		if (xpoints[0]>xpoints[1]) {
+			x=x-xInterval;			
+		}
+	
+		else {
+			x=x+xInterval;		
+		}
+
+		
+		
+
+	}
+} 
+for(c = 1; c<=channels; c++){
+	
+	run("Images to Stack", "method=[Copy (center)] name=Stack"+c+" title=XR"+c+" use");
+	selectImage("Stack"+c);
+	run("Make Montage...", "columns="+frames+" rows=1 scale=1");
+	rename("FixedY");
+	close("Stack"+c);
+}
+
+
+
+
+//make box image
+selectImage(image);
+makeRectangle(xmin-boxwidth,ymin-boxwidth,width+boxwidth,width+boxwidth);
+for (i = 1; i <= totalFrames; i++) {
+	selectImage(image);
+	Stack.setFrame(i);
+	code =toString(c)+toString(i);
+	if (channels==1) {
+			run("Duplicate...", "title=BX-"+code+" duplicate range="+i+"-"+i);
+		}
+		else{
+			run("Duplicate...", "title=BX-"+code+" duplicate channels="+c+" frames="+i);
+		}
+
+
+}
+
+for(c = 1; c<=channels; c++){
+run("Images to Stack", "method=[Copy (center)] name=Stack title=BX- use");
+run("Make Montage...", "columns="+frames+" rows=1 scale=1");
+rename("FixedSquare");
+close("Stack");
+}
+
+selectImage(image);
+makeLine(xpoints[0], ypoints[0], xpoints[1], ypoints[1]);
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+run("Select None");
+selectImage(image);
+roiInterval2 = width/2;
+makeRectangle(xpoints[0]-roiInterval, ypoints[0]-roiInterval2, height, width);
+
+for (i = 1; i <= totalFrames; i++) {
+	selectImage(image);
+	Stack.setFrame(i);
+	Roi.move(xpoints[i-1]-roiInterval, y);
+	run("Duplicate...", "title=YR-"+i);
+
+	
+
+}
+
+run("Images to Stack", "method=[Copy (center)] name=Stack title=YR- use");
+run("Make Montage...", "columns=20 rows=1 scale=1");
+
+
+
+run("Select None");
+selectImage(image);
+Array.getStatistics(xpoints, xmin, xmax, xmean, stdDev);
+Array.getStatistics(ypoints, ymin, ymax, ymean, stdDev);
+
+makeRectangle((xmin-3)-(width/2), (ymin-3)-(width/2), width, width);
+for (i = 1; i <= totalFrames; i++) {
+	selectImage(image);
+	Stack.setFrame(i);
+
+	run("Duplicate...", "title=BX-"+i);
+	
+
+}
+run("Images to Stack", "method=[Copy (center)] name=Stack title=BX- use");
+run("Make Montage...", "columns=20 rows=1 scale=1");
+sliceWidth = 20;
+
+
+
+getSelectionCoordinates(xpoints, ypoints);
+Array.print(xpoints);
+
+x1 = xpoints[0];
+x2 = xpoints[1];
+
+
+
+
+
+*/
