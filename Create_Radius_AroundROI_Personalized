@@ -1,0 +1,39 @@
+
+
+
+
+
+name= getTitle();
+
+run("Duplicate...", "title=NEW duplicate channels=2");
+
+run("3D Maxima Finder", "minimmum=2000 radiusxy=1.50 radiusz=1.50 noise=500");
+run("8-bit");
+for(i=0;i<nResults;i++){
+	x=getResult("X",i);
+	y=getResult("Y",i);
+	z=getResult("Z",i);
+	
+	setSlice(z+1);
+	makeOval(x-8.8, y-8.8, 17.7, 17.7);
+	run("Draw", "slice");
+	close("NEW");
+}
+
+
+
+
+selectImage(name);
+run("Duplicate...", "title=NEW duplicate channels=2");
+
+//run("Unsharp Mask...", "radius=2 mask=0.80 stack");
+run("Gaussian Blur 3D...", "x=2 y=2 z=2");
+run("Subtract Background...", "rolling=10 disable stack");
+run("Gaussian Blur 3D...", "x=7 y=7 z=7");
+run("Auto Threshold", "method=Otsu white stack use_stack_histogram");
+
+selectImage(name);
+run("Duplicate...", "title=Source duplicate channels=2");
+run("8-bit");
+
+run("Merge Channels...", "c1=peaks c2=Source c3=NEW create ignore");
