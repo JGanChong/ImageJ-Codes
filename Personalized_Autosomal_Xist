@@ -1,0 +1,97 @@
+/*
+ * Macro template to process multiple images in a folder
+ */
+
+#@ File (label = "Input directory", style = "directory") input
+#@ File (label = "Output directory", style = "directory") output
+#@ String (label = "File suffix", value = ".tif") suffix
+
+// See also Process_Folder.py for a version of this code
+// in the Python scripting language.
+
+processFolder(input);
+
+// function to scan folders/subfolders/files to find files with correct suffix
+function processFolder(input) {
+	list = getFileList(input);
+	list = Array.sort(list);
+	for (i = 0; i < list.length; i++) {
+		if(File.isDirectory(input + File.separator + list[i]))
+			processFolder(input + File.separator + list[i]);
+		if(endsWith(list[i], suffix))
+			processFile(input, output, list[i]);
+	}
+}
+
+function processFile(input, output, file) {
+
+//Initialize 3D Suite
+		run("3D Manager");
+		open(input+File.separator+list[i]);
+		noExt=File.nameWithoutExtension;
+		title=getTitle();
+
+//Define xist and chromosome paint channels
+		if (indexOf(noExt, "Xist488")>0) {
+			ch="C2-";//foci
+			ch2="C1-";//chromosome
+		}
+
+		else {
+			ch="C1-";//foci
+			ch2="C2-";//chromosome
+		}
+    
+  
+ //Create folder to save thet data
+		File.makeDirectory(output+File.separator+"testimages");
+
+
+//Clear 3D Roi manager
+		Ext.Manager3D_SelectAll();
+		Ext.Manager3D_Delete();
+
+//Prepare image, filter and segment		
+		run("Split Channels");
+		selectWindow(ch2+title);
+		run("Gaussian Blur 3D...", "x=5 y=5 z=5");
+		
+		run("Auto Threshold", "method=Yen white stack use_stack_histogram");
+		run("3D Simple Segmentation", "low_threshold=1 min_size=30000 max_size=-1");
+		selectImage("Seg");
+		Ext.Manager3D_AddImage();
+		Ext.Manager3D_SelectAll();
+		Ext.Manager3D_Merge();
+		print("HI");
+		Ext.Manager3D_Load(output+File.separator+noExt+File.separator+"ROIs_of_"+ch+noExt+".zip");
+		Ext.Manager3D_Select(0);
+		Ext.Manager3D_Count(nb);
+		resultsrow = nResults;
+    
+ //check if its ovre Xi or autosomal chromosome
+		for (i = 1; i < nb; i++) {
+			Ext.Manager3D_GetName(i,objn);
+			Ext.Manager3D_Coloc2(0,i,coloc1,coloc2,surf_cont);
+			Ext.Manager3D_Dist2(0,i,"cc",dist);
+			row = resultsrow+(i-1);
+			setResult("Cell", row, noExt);
+			setResult("Object", row, objn);
+			setResult("DistCC", row, dist);
+			setResult("Coloc", row, coloc2);
+			setResult("Surface_Coloc", row, surf_cont);
+			
+		}
+    
+ //Post results in table
+		updateResults();
+		selectImage("Seg");
+		saveAs("tif", output+File.separator+noExt+File.separator+"Mask_of_"+ch2+noExt+".tif");
+		run("Z Project...", "projection=[Max Intensity]");
+		resetMinAndMax();
+		run("Apply LUT");
+		saveAs("png", output+File.separator+"testimages"+File.separator+"PNGMask_of_"+ch2+noExt+".png");
+		
+		selectWindow("Results");
+		saveAs("results", output + File.separator +"Coloc_Results.csv");
+		close("*");
+}
