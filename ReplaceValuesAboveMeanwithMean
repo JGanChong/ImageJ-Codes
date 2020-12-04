@@ -1,0 +1,3 @@
+//Tested using ImageJ/Fiji 1.53c Java 1.80_172 (64 bit)
+getStatistics(area, mean, min, max, std, histogram);
+changeValues(mean, max, mean);
