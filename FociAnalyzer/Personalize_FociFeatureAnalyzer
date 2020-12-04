@@ -1,0 +1,1144 @@
+
+var channelarray, chnamearray, fociarray, ROIcharray, selectedarray, roiarray, SettingsTableName, NumbersTableName,distkick,objname, focitype, seed, image,gaussian, tophat, minsizevar, maxsizevar, objectname, kickarray, maxdistance, kickedsmall, kickedbig,roimain,once,kickedarray,nbtotal, nb_total, arraycheck, ;
+setOption("ExpandableArrays", true);
+run("Set Measurements...", "area mean min integrated redirect=None decimal=6");
+once = 0;
+close("Results");
+
+getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+
+#@ File (label = "Input directory", style = "directory") input
+#@ File (label = "Output directory", style = "directory") output
+#@ String (label = "File suffix", value = ".tif") suffix
+
+channelarray = newArray;
+chnamearray = newArray;
+fociarray = newArray;
+roiarray = newArray;
+kickedarray = newArray;
+kickarray = newArray;
+distkick = newArray;
+selectedarray = newArray;
+ROIcharray = newArray;
+
+//Closes all images
+	close("*");
+
+
+//User Changeable Variables
+SettingsTableName = "Settings";
+NumbersTableName = "Foci_Count";
+
+	//Settings Table designated rows
+	focityperow = 0;
+	seedrow = 1;
+	imagerow = 2;
+	gaussianrow = 3;
+	tophatrow = 4;
+	minsizerow = 5;
+	maxsizerow = 6;
+	maxdistancerow = 7;
+	nbrow = 8;
+	kickedsmallrow = 9;
+	kickedbigrow = 10;
+	kickedDistrow = 11;
+	finalfocirow = 12;
+
+//Creates Initial Dialog
+	Dialog.create("Channels to Process"); //checks which channels to apply segmentation
+
+	Dialog.addCheckbox("Channel 1", true);
+	Dialog.addCheckbox("Channel 2", true);
+	Dialog.addCheckbox("Channel 3", false);
+	Dialog.addCheckbox("Channel 4", false);
+	Dialog.addCheckbox("Channel 5", false);
+	Dialog.addCheckbox("Find Nearest Neighbor", false);
+	Dialog.addCheckbox("Find Channel Volume", true);
+	Dialog.addMessage("Intrachannel Options");
+	Dialog.addCheckbox("Associated Foci Threshold", false);
+	Dialog.addCheckbox("Find All Nearest Neighbor", false);
+	Dialog.addCheckbox("All Distances (painfully slow)", false);
+	Dialog.addCheckbox("Find 2nd Neirest Neighbors:", false);
+
+	
+	
+
+	Dialog.show();
+
+	doch1 = Dialog.getCheckbox();
+	doch2 = Dialog.getCheckbox();
+	doch3 = Dialog.getCheckbox();
+	doch4 = Dialog.getCheckbox();
+	doch5 = Dialog.getCheckbox();
+	doNN = Dialog.getCheckbox();
+	doChVol = Dialog.getCheckbox();
+	doAFT = Dialog.getCheckbox();
+	doallNN = Dialog.getCheckbox();
+	doAD = Dialog.getCheckbox();
+	do2NN = Dialog.getCheckbox();
+
+//Creates settings table	
+	Table.create(NumbersTableName);
+	Table.create(SettingsTableName);
+	
+	
+
+	selectWindow(SettingsTableName);
+	
+	Table.showRowNumbers(false);
+	Table.set("Name", focityperow, "Foci Type");
+	Table.set("Name", seedrow, "Seed Threshold");
+	Table.set("Name", imagerow, "Image Threshold");
+	Table.set("Name", gaussianrow, "3D Gaussian Blur");
+	Table.set("Name", tophatrow, "Seed Top Hat");
+	Table.set("Name", minsizerow, "Minimum Allowed Particle Size");
+	Table.set("Name", maxsizerow, "Maximum Allowed Particle Size");
+	Table.set("Name", maxdistancerow, "Maximum Allowed Distance");
+	Table.set("Name", nbrow, "Number of Signals before Filtering");
+	Table.set("Name", kickedsmallrow, "Number of Kicked Signals by Size (small)");
+	Table.set("Name", kickedbigrow, "Number of Kicked Signals by Size (big)");
+	Table.set("Name", kickedDistrow, "Number of Kicked Signals by Distance");
+	Table.set("Name", finalfocirow, "Final Number of Signals");
+	
+
+	Table.update(SettingsTableName);
+	
+	
+	
+	vararray = 0;
+	if(doch1 == true){
+			channelarray[vararray]="channel1";
+			chnamearray[vararray]= "C1-";
+			kickedarray[vararray] = 0;
+			vararray++;
+		}
+	if(doch2 == true){
+			channelarray[vararray]="channel2";
+			chnamearray[vararray]= "C2-";
+			kickedarray[vararray] = 0;
+			vararray++;
+		}
+	if(doch3 == true){
+			channelarray[vararray]="channel3";
+			chnamearray[vararray]= "C3-";
+			kickedarray[vararray] = 0;
+			vararray++;
+		}
+	if(doch4 == true){
+			channelarray[vararray]="channel4";
+			chnamearray[vararray]= "C4-";
+			kickedarray[vararray] = 0;
+			vararray++;
+		}
+	if(doch5 == true){
+			channelarray[vararray]="channel5";
+			chnamearray[vararray]= "C5-";
+			kickedarray[vararray] = 0;
+			vararray++;
+		}
+		
+		
+	if(doNN == true || doAFT==true){
+		
+	if(vararray<2){
+		exit("Nearest Neighbor and Associated Foci thresholding Requires 2 channels");
+	}
+	Dialog.create("Channel Hierarchy");
+	Dialog.addChoice("Main Channel", channelarray,channelarray[1]);
+	Dialog.addNumber("Max Distance (microns)", 0.250);
+	Dialog.show();
+	mainch = Dialog.getChoice();
+	maxdistance = Dialog.getNumber();
+	List.set("maxdistance", maxdistance);
+
+	
+	
+	}
+
+	for (f = 0; f < vararray; f++) {
+		TableSetup();
+		fociarray[f] = focitype;
+		addList();
+		
+		
+	}
+	if(doNN == true || doAFT==true){
+	for(q = 0; q<channelarray.length; q++){
+		if (channelarray[q]==mainch) {
+			mainch = chnamearray[q];
+			break;
+		}
+	}
+	}
+	
+
+
+
+	
+processFolder(input);
+
+// function to scan folders/subfolders/files to find files with correct suffix
+function processFolder(input) {
+	list = getFileList(input);
+	list = Array.sort(list);
+	for (b = 0; b < list.length; b++) {
+		if(File.isDirectory(input + File.separator + list[b]))
+			processFolder(input + File.separator + list[b]);
+		if(endsWith(list[b], suffix))
+			processFile(input, output, list[b]);
+	}
+}
+
+
+
+
+function processFile(input, output, file) {
+	
+	if (doAD == true && once==0) {
+	ADdir = output + File.separator + "Distance_Files"; //directory to save the files
+	File.makeDirectory(ADdir);
+	
+	}
+	
+	//Open image from folder
+	open(input+File.separator+list[b]);
+	
+	//gets properties from image
+	noExt = File.nameWithoutExtension;
+	filename = getTitle();
+
+	//find channel file names
+	ch1 = "C1-" + filename; //channel1
+	ch2 = "C2-" + filename; //channel2
+	ch3 = "C3-" + filename; //channel3
+	ch4 = "C4-" + filename; //channel4
+	ch5 = "C5-" + filename; //channel5
+	
+	ch1ne = "C1-" + noExt; //channel1 no extension
+	ch2ne = "C2-" + noExt; //channel2 no extension
+	ch3ne = "C3-" + noExt; //channel3 no extension
+	ch4ne = "C4-" + noExt; //channel4 no extension
+	ch5ne = "C5-" + noExt; //channel5 no extension
+	
+		
+	//gets original image properties
+	getVoxelSize(width, height, depth, unit); 
+	voxw = width;
+	voxh = height;
+	voxd = depth;
+	voxu = unit;
+	
+	
+	//makes folder for image
+	dir = output + File.separator + noExt; //directory to save the files
+	File.makeDirectory(dir);
+	
+	
+	selectImage(filename);	
+	saveAs("tiff", dir+File.separator+filename);
+
+	
+	//Image Prep 
+	
+	run("Split Channels");
+	run("3D Manager");
+	Ext.Manager3D_MultiSelect();
+	
+	resultsrow = nResults; //numbers of entries in results table
+	
+	for(i=0; i<vararray; i++){
+		distkick[i]=0;
+		activech = channelarray[i];
+		active = chnamearray[i]+filename;
+		activene = chnamearray[i]+noExt;
+		ProgramOrder();
+		
+	}
+	
+	
+
+	filelist = getFileList(dir);
+	filelistsort = Array.sort(filelist);
+
+
+
+
+	
+	if(doAFT==true) {
+		doNNthr();			
+	}
+	
+
+	if(doAFT==false){
+		Ext.Manager3D_SelectAll();
+			Ext.Manager3D_Delete();
+			ptq=0;
+			for (d = 0; d < filelistsort.length; d++) {
+				if(endsWith(filelistsort[d], ".zip")){
+					print("poop2");
+					Ext.Manager3D_Load(dir + File.separator + filelistsort[d]);	
+					print("poop2");
+					Ext.Manager3D_SelectAll();
+					Ext.Manager3D_Count(nb_obj);
+					roiarray[ptq] = nb_obj;
+					ptq++;	
+				}
+			}
+	}
+
+		Ext.Manager3D_SelectAll();
+		Ext.Manager3D_Count(nb_total);
+		ROIcharray = newArray;
+		amount=0;
+		for(qt = 0; qt<vararray; qt++){
+			
+			
+			for(h = 0; h<nb_total; h++){
+				Ext.Manager3D_GetName(h, name);
+				if(indexOf(name, channelarray[qt])>=0){
+					amount++;
+				}
+			}
+			
+			ROIcharray[qt] = amount;
+					
+		}
+
+	
+		if (doNN==true) {
+			findNN();
+		}
+
+		else {
+			print("nalyzing");
+			analyze();
+		}
+
+		if(doallNN==true){
+			findallNN();
+		}
+	
+		if(doAD==true) {
+			allDist();
+		}
+
+	print("steppy");
+	selectWindow(NumbersTableName);
+	size=Table.size;
+	if(size>0){
+		cellcheck=Table.getString("Cell", size-1);
+		
+		if(cellcheck==noExt){
+			for(l = 0; l<vararray; l++){
+			
+				selectWindow(SettingsTableName);
+				nbtotal = Table.get(channelarray[l], nbrow);
+				Table.set(channelarray[l], kickedDistrow, distkick[l]);
+				Table.set(channelarray[l], finalfocirow, nbtotal-kickedarray[l]-distkick[l]);
+				Table.update(SettingsTableName);
+				selectWindow(NumbersTableName);
+				Table.set("Cell", size-1, noExt);
+				Table.set(channelarray[l], size-1, nbtotal-kickedarray[l]-distkick[l]);
+				Table.update(NumbersTableName);
+				
+			}
+		}
+	}
+
+	
+
+	else {
+			for(l = 0; l<vararray; l++){
+			print("steppy2");
+				selectWindow(SettingsTableName);
+				nbtotal = Table.get(channelarray[l], nbrow);
+				Table.set(channelarray[l], kickedDistrow, distkick[l]);
+				Table.set(channelarray[l], finalfocirow, nbtotal-kickedarray[l]-distkick[l]);
+				Table.update(SettingsTableName);
+				selectWindow(NumbersTableName);
+				Table.set("Cell", size, noExt);
+				Table.set(channelarray[l], size, nbtotal-kickedarray[l]-distkick[l]);
+				Table.update(NumbersTableName);
+				
+	}
+
+	}
+	
+	
+	
+
+	
+	Ext.Manager3D_SelectAll();
+	Ext.Manager3D_Delete();
+	Ext.Manager3D_Close();
+	
+
+
+	close("*");
+
+	selectWindow(SettingsTableName);
+	saveAs("results", dir + File.separator + "Settings_of_"+noExt+".csv");
+	Table.rename("Settings_of_"+noExt+".csv", SettingsTableName);
+
+	selectWindow("Results");
+	saveAs("results", output + File.separator + "Results.csv");
+
+	selectWindow(NumbersTableName);
+	saveAs("results", output + File.separator + "Foci_Count.csv");
+	Table.rename("Foci_Count.csv", NumbersTableName);
+	
+	Array.fill(kickedarray, 0);
+	Array.fill(kickarray, 0);
+	Array.fill(distkick, 0);
+
+getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+
+}		
+
+function ProgramOrder() {
+	
+	Ext.Manager3D_DeselectAll();
+	Ext.Manager3D_SelectAll();
+	Ext.Manager3D_Delete();
+
+	//get seed and segment
+	GetSeed();
+
+	//Gets segmented ROIs and do size filter
+	useROImanager();
+
+	if(doChVol == true) {
+		maskvolume();
+	}
+		
+	selectImage("imgext");
+	rename(active);
+	
+
+	
+}
+function addList(){
+	
+	List.set("focitype"+f, focitype);
+	List.set("seed"+f, seed);
+	List.set("image"+f, image);
+	List.set("gaussian"+f, gaussian);
+	List.set("tophat"+f, tophat);
+	List.set("minsizevar"+f, minsizevar);
+	List.set("maxsizevar"+f, maxsizevar);
+	
+
+}
+
+function TableSetup() {
+	
+	Dialog.create("Settings for " + channelarray[f]);
+	Dialog.addString("Foci Type (no spaces):", channelarray[f]);
+	Dialog.addMessage("Seed Settings");
+	Dialog.addNumber("Seed Threshold:", 8.1);
+	Dialog.addNumber("Image Threshold:", 2);
+	Dialog.addNumber("3D Gaussian Blur Filter:", 1);
+	Dialog.addNumber("Top Hat:", 2);
+	Dialog.addMessage("Segmented Foci Settings");
+	Dialog.addNumber("Minimum Particle Size (voxel):", 10);
+	Dialog.addNumber("Maximum Particle Size (voxel):", 150);
+	
+
+	Dialog.show();
+
+	focitype = Dialog.getString();
+	seed = Dialog.getNumber();
+	image = Dialog.getNumber();
+	gaussian = Dialog.getNumber();
+	tophat = Dialog.getNumber();
+	minsizevar = Dialog.getNumber();
+	maxsizevar = Dialog.getNumber();
+	
+
+
+	
+	
+
+	//Prepare Table for Data
+	
+	selectWindow(SettingsTableName);
+	Table.set(channelarray[f], focityperow, focitype);
+	Table.set(channelarray[f], seedrow, seed);
+	Table.set(channelarray[f], imagerow, image);
+	Table.set(channelarray[f], gaussianrow, gaussian);
+	Table.set(channelarray[f], tophatrow, tophat);
+	Table.set(channelarray[f], minsizerow, minsizevar);
+	Table.set(channelarray[f], maxsizerow, maxsizevar);
+	Table.set(channelarray[f], maxdistancerow, maxdistance);
+	Table.update(SettingsTableName);
+	
+
+}
+
+function GetSeed() {
+	
+	//get image histogram properties
+	selectImage(active);
+	Stack.getStatistics(voxelCount, mean, min, max, stdDev);
+	
+	//calculates image thr
+	imgmult = List.getValue("image"+i);
+	seedmult = List.getValue("seed"+i);
+	seedthr =  mean + ((2 * stdDev) * seedmult);
+	imagethr = seedthr/imgmult;
+	simagethr = seedthr/1.2;
+
+	//prepares image for seed by creating duplicate
+	selectImage(active);
+	rename("imgext");
+	run("Duplicate...", "title=seedroll duplicate");
+
+	//applies filters to seed
+	selectImage("seedroll");
+	gb = List.getValue("gaussian"+i);
+	run("Gaussian Blur 3D...", "x="+gb+" y="+gb+" z="+gb);
+	th = List.getValue("tophat"+i);
+	run("3D Fast Filters","filter=TopHat radius_x_pix="+th+" radius_y_pix="+th+" radius_z_pix=1.0 Nb_cpus=4");
+	selectImage("3D_TopHat");
+	rename("seedroll2");
+
+	//calculate seed thr
+	Stack.getStatistics(voxelCount, mean, min, max, stdDev);
+	seedthr2 =  mean + ((2 * stdDev) * seedmult);
+	imagethr2 = seedthr2/imgmult;
+	simagethr2 = seedthr2/1.2;
+ 	
+ 	
+	//creates seed
+	run("3D Watershed", "seeds_threshold="+seedthr2 + " image_threshold="+simagethr2+ " image=seedroll2 seeds=Automatic radius=1");
+	selectImage("watershed");
+	rename("seed");
+	
+	//Segments image with seed	
+	run("3D Watershed", "seeds_threshold=1 image_threshold="+imagethr+ " image=imgext seeds=seed radius=1");
+	
+}
+
+
+
+function useROImanager(){
+
+	//applies original iamge properties to segmented watershed image
+	selectWindow("watershed");
+	setVoxelSize(voxw, voxh, voxd, voxu);
+
+	//Creates ROIs
+	Ext.Manager3D_AddImage();
+	Ext.Manager3D_SelectAll();
+	
+	ROItidy();
+
+	//saves rois
+	Ext.Manager3D_Save(dir+File.separator+"ROIs_of_"+activene+".zip");
+
+	//Saves mask
+	selectWindow("watershed");
+	saveAs("tiff", dir+File.separator+"Masks_of_"+activene);
+	close();
+	close("seedroll");
+	close("seedroll2");
+	close("seed");
+	
+	
+	
+}
+
+function ROItidy() {
+
+	//counts numbers of objects
+	Ext.Manager3D_SelectAll();
+	Ext.Manager3D_Count(nb_total);
+
+	//adds objects before filtering
+	selectWindow(SettingsTableName);
+	Table.set(activech, nbrow, nb_total);
+	Table.update(SettingsTableName);
+	
+	//Get Size Values
+	minsizevar = List.getValue("minsizevar"+i);
+	maxsizevar = List.getValue("maxsizevar"+i);
+	kicked = 0;
+	kickedsmall=0;
+	kickedbig=0;
+	for(a=0; a<nb_total; a++){
+		
+		Ext.Manager3D_Measure3D(a,"NbVox",mnbvox);
+		if (mnbvox<minsizevar) {
+			Ext.Manager3D_DeselectAll();
+			Ext.Manager3D_Select(a);
+			Ext.Manager3D_Delete();
+			kickedsmall++;
+			kickedarray[i]++;
+			a=a-1;
+			
+			}
+
+			if (mnbvox>maxsizevar){
+			Ext.Manager3D_DeselectAll();
+			Ext.Manager3D_Select(a);
+			Ext.Manager3D_Delete();
+			kickedbig++;
+			kickedarray[i]++;
+			a=a-1;
+			}
+			
+	}
+
+		
+		selectWindow(SettingsTableName);
+		Table.set(activech, kickedbigrow, kickedbig);
+		Table.set(activech, kickedsmallrow, kickedsmall);
+		Table.update(SettingsTableName);
+		fltnb = nb_total - kickedbig - kickedsmall;
+		
+	Ext.Manager3D_SelectAll();
+	selectWindow(SettingsTableName);
+	
+	Ext.Manager3D_Rename(activech+"-");
+	
+}
+
+
+function analyze(){
+
+
+	qt=0;
+	pt=0;
+	qtt=0;
+	
+	Ext.Manager3D_SelectAll();
+	Ext.Manager3D_Count(nb); 
+	
+	for(qt = 0; qt<vararray; qt++){
+
+	selectImage(chnamearray[qt]+filename);
+	
+	
+		//Select Object
+		for(h = 0; h<nb; h++){
+			Ext.Manager3D_GetName(h, name);
+			if(indexOf(name, channelarray[qt])>=0){		
+				
+				Ext.Manager3D_Measure3D(h,"Vol",mvol);
+				Ext.Manager3D_Measure3D(h,"Feret",mferet);
+				Ext.Manager3D_Measure3D(h,"NbVox",mvox);
+				Ext.Manager3D_Measure3D(h,"Elon1",melon);
+				Ext.Manager3D_Measure3D(h,"Comp",mcomp);
+				Ext.Manager3D_Centroid3D(h,cx,cy,cz);
+				Ext.Manager3D_Quantif3D(h,"IntDen",qintden);
+				Ext.Manager3D_Quantif3D(h,"Mean",qmean);
+				Ext.Manager3D_Quantif3D(h,"Max",qmax);
+				Ext.Manager3D_Quantif3D(h,"Min",qmin);
+	
+				Ext.Manager3D_GetName(h, first);
+	
+				setResult("Cell", resultsrow + pt, noExt);
+				setResult("ROI", resultsrow + pt, first);
+				setResult("cX", resultsrow + pt, cx);
+				setResult("cY", resultsrow + pt, cy);
+				setResult("cZ", resultsrow + pt, cz);
+				setResult("Volume_unit", resultsrow + pt, mvol);
+				setResult("Volume_voxel", resultsrow + pt, mvox);
+				setResult("Feret", resultsrow + pt, mferet);
+				setResult("Compactness", resultsrow + pt, mcomp);
+				setResult("Elongation", resultsrow + pt, melon);
+				setResult("IntDen", resultsrow + pt, qintden);
+				setResult("Mean", resultsrow + pt, qmean);
+				setResult("Min", resultsrow + pt, qmin);
+				setResult("Max", resultsrow + pt, qmax);
+				
+
+			pt++;
+				
+		}
+	}					
+			updateResults();
+			Ext.Manager3D_SelectAll();
+			
+			Ext.Manager3D_Save(dir+File.separator+"ROIs_of_"+noExt+".zip");
+			
+			
+
+		
+}
+}
+
+function doNNthr(){
+	
+	Ext.Manager3D_SelectAll();
+	Ext.Manager3D_Delete();
+	ptq=0;
+	
+	for (d = 0; d < filelistsort.length; d++) {
+		if(endsWith(filelistsort[d], ".zip")){
+			Ext.Manager3D_Load(dir + File.separator + filelistsort[d]);	
+			Ext.Manager3D_SelectAll();
+			Ext.Manager3D_Count(nb_obj);
+			roiarray[ptq] = nb_obj;
+			
+			
+			
+			if(indexOf(filelistsort[d], mainch)>1){
+				roimain=ptq;	
+			}
+			ptq++;				
+		}
+		
+	}
+	
+	
+	maxdistance = List.getValue("maxdistance");
+	if(roimain==0){
+		range1 = 0;
+		range2 = roiarray[roimain];
+	}
+	else{
+		range1 = roiarray[roimain-1];
+		range2 = roiarray[roimain];
+	}
+
+		
+		ptq=0;
+		Ext.Manager3D_DeselectAll();
+		for (e = 0; e < roiarray[vararray-1]; e++) {
+			Ext.Manager3D_SelectFor(range1,range2,1);
+			
+			
+			if (e<range2 && e>=range1) {	
+				
+				}
+			else{
+				
+				Ext.Manager3D_Select(e);
+				Ext.Manager3D_GetName(e,objname);
+				Ext.Manager3D_Closest(e,"cc",closestcc);
+				Ext.Manager3D_GetName(closestcc,namecc);
+				Ext.Manager3D_Dist2(e,closestcc,"cc",distcc);
+				Ext.Manager3D_Closest(e,"cc",closestbb);
+				Ext.Manager3D_GetName(closestbb,namebb);
+				Ext.Manager3D_Dist2(e,closestbb,"bb",distbb);
+				
+				if (distcc > maxdistance) {
+					
+					kickarray[ptq] = e;	
+					ptq++;
+
+					for(t=0;t<vararray;t++){
+						if(indexOf(objname, channelarray[t])>=0){
+							distkick[t]++;
+						}
+						}
+				}
+				Ext.Manager3D_DeselectAll();
+			}
+		}
+		Ext.Manager3D_DeselectAll();
+		for(g = 0; g<ptq; g++){
+			Ext.Manager3D_Select(kickarray[g]);
+			
+		}
+		if (ptq!=0) {
+			Ext.Manager3D_Delete();
+		}
+		
+		Ext.Manager3D_SelectAll();
+		Ext.Manager3D_Save(dir+File.separator+"ROIs_of_"+noExt+".zip");
+		
+		
+}
+	
+
+	
+	
+	
+	
+
+
+function findNN(){
+	
+	
+	
+	Ext.Manager3D_SelectAll();
+	Ext.Manager3D_Count(nb); 
+	
+	Ext.Manager3D_DeselectAll();
+	qt=0;
+	pt=0;
+	
+	for(qt = 0; qt<vararray; qt++){
+	lower=0;
+	upper=0;
+	selectImage(chnamearray[qt]+filename);
+
+	Ext.Manager3D_DeselectAll();
+		for(h = 0; h<nb; h++){
+			Ext.Manager3D_GetName(h, name);
+			if(indexOf(name, channelarray[qt])>=0){
+				Ext.Manager3D_Select(h);
+				lower++;
+				upper=h;
+				}
+		}
+		
+		
+		for(m = (upper-lower)+1 ; m<=upper; m++){
+				
+				Ext.Manager3D_Closest(m,"cc",closestcc);
+				Ext.Manager3D_GetName(closestcc,namecc);
+				Ext.Manager3D_Dist2(m,closestcc,"cc",distcc);
+				Ext.Manager3D_Closest(m,"cc",closestbb);
+				Ext.Manager3D_GetName(closestbb,namebb);
+				Ext.Manager3D_Dist2(m,closestbb,"bb",distbb);
+				
+				Ext.Manager3D_Measure3D(m,"Vol",mvol);
+				Ext.Manager3D_Measure3D(m,"Feret",mferet);
+				Ext.Manager3D_Measure3D(m,"NbVox",mvox);
+				Ext.Manager3D_Measure3D(m,"Elon1",melon);
+				Ext.Manager3D_Measure3D(m,"Comp",mcomp);
+				Ext.Manager3D_Centroid3D(m,cx,cy,cz);
+				Ext.Manager3D_Quantif3D(m,"IntDen",qintden);
+				Ext.Manager3D_Quantif3D(m,"Mean",qmean);
+				Ext.Manager3D_Quantif3D(m,"Max",qmax);
+				Ext.Manager3D_Quantif3D(m,"Min",qmin);
+	
+				Ext.Manager3D_GetName(m, first);
+	
+				setResult("Cell", resultsrow + pt, noExt);
+				setResult("ROI", resultsrow + pt, first);
+				setResult("cX", resultsrow + pt, cx);
+				setResult("cY", resultsrow + pt, cy);
+				setResult("cZ", resultsrow + pt, cz);
+				setResult("Volume_unit", resultsrow + pt, mvol);
+				setResult("Volume_voxel", resultsrow + pt, mvox);
+				setResult("Feret", resultsrow + pt, mferet);
+				setResult("Compactness", resultsrow + pt, mcomp);
+				setResult("Elongation", resultsrow + pt, melon);
+				setResult("IntDen", resultsrow + pt, qintden);
+				setResult("Mean", resultsrow + pt, qmean);
+				setResult("Min", resultsrow + pt, qmin);
+				setResult("Max", resultsrow + pt, qmax);
+	
+				setResult("NN_SameCh_CC", resultsrow + pt, namecc);
+				setResult("NN_SameCh_BB", resultsrow + pt, namebb);
+				setResult("NNDistance_SameCh_CC", resultsrow + pt, distcc);
+				setResult("NNDistance_SameCh_BB", resultsrow + pt, distbb);
+				pt++;
+				updateResults();
+				
+			}
+			
+			
+		}
+	
+			updateResults();
+			if(doAFT==false){
+				Ext.Manager3D_SelectAll();
+				Ext.Manager3D_Save("ROIs_of_"+noExt+".zip");
+			}
+	
+}
+function findallNN(){
+
+
+	Ext.Manager3D_SelectAll();
+	Ext.Manager3D_Count(nb); 
+	Ext.Manager3D_DeselectAll();
+
+	qt=0;
+	pt=0;
+	qtt=0;
+
+	for(qt = 0; qt<vararray; qt++){
+
+
+		//Select Object
+		for(h = 0; h<nb; h++){
+			Ext.Manager3D_GetName(h, name);
+			if(indexOf(name, channelarray[qt])>=0){
+				
+			//Select objects to compare to
+			for(qtt = 0; qtt<vararray; qtt++){
+				if(qtt!=qt){
+
+					if(qtt==0){
+						Ext.Manager3D_SelectFor(0,ROIcharray[0],1);	
+											
+						}
+
+					else {
+						Ext.Manager3D_SelectFor(ROIcharray[qtt-1],ROIcharray[qtt],1);
+						
+					}
+
+					Ext.Manager3D_Select(h);
+
+			
+					
+				
+						//checks there more than 1 object
+						errorarray = newArray;
+						Ext.Manager3D_GetSelected(list);
+						errorarray=split(list,":");
+						Array.getStatistics(errorarray, emin, emax, emean, estdDev);
+					
+						
+						//find NN
+						if(emin!=emax){ 
+						
+							Ext.Manager3D_Closest(h,"cc",closestcc);
+							Ext.Manager3D_GetName(closestcc,namecc);
+							Ext.Manager3D_Dist2(h,closestcc,"cc",distcc);
+							Ext.Manager3D_Closest(h,"cc",closestbb);
+							Ext.Manager3D_GetName(closestbb,namebb);
+							Ext.Manager3D_Dist2(h,closestbb,"bb",distbb);
+				
+							setResult("NN_CC_to_"+channelarray[qtt] , resultsrow + pt, namecc);
+							setResult("NN_BB_to_"+channelarray[qtt], resultsrow + pt, namebb);
+							setResult("NNDistance_CC_to_"+channelarray[qtt], resultsrow + pt, distcc);
+							setResult("NNDistance_BB_to_"+channelarray[qtt], resultsrow + pt, distbb);
+
+							//finds second NN
+							if (do2NN==true) {
+	
+							
+							selectedarray = newArray;
+							Ext.Manager3D_GetSelected(list);
+							selectedarray=split(list,":");
+							Array.getStatistics(selectedarray, amin, amax, amean, astdDev);
+							
+							Ext.Manager3D_DeselectAll();
+							if(amin!=amax){
+	
+								for (t = 0; t < selectedarray.length; t++) {
+									arraycheck = selectedarray[t];
+									if (arraycheck!=closestcc) {
+										Ext.Manager3D_Select(selectedarray[t]);
+									}
+									
+								}
+								Ext.Manager3D_Closest(h,"cc",closestcc);
+								Ext.Manager3D_GetName(closestcc,namecc);
+								Ext.Manager3D_Dist2(h,closestcc,"cc",distcc);
+								Ext.Manager3D_Closest(h,"cc",closestbb);
+								Ext.Manager3D_GetName(closestbb,namebb);
+								Ext.Manager3D_Dist2(h,closestbb,"bb",distbb);
+					
+								setResult("SecondNN_CC_to_"+channelarray[qtt] , resultsrow + pt, namecc);
+								setResult("SecondNN_CCNN_BB_to_"+channelarray[qtt], resultsrow + pt, namebb);
+								setResult("SecondNN_CCNNDistance_CC_to_"+channelarray[qtt], resultsrow + pt, distcc);
+								setResult("SecondNN_CCNNDistance_BB_to_"+channelarray[qtt], resultsrow + pt, distbb);
+								}
+							}
+							
+							
+							
+							
+							Ext.Manager3D_DeselectAll();
+				}
+				}
+			}
+			pt++;
+			}	
+		}
+	}					
+			updateResults();
+			
+	
+}
+
+/*function findallNN(){
+	
+	Ext.Manager3D_SelectAll();
+	Ext.Manager3D_Count(nb); 
+	
+	Ext.Manager3D_DeselectAll();
+	qt=0;
+	pt=0;
+	qtt=0;
+	
+	for(qt = 0; qt<vararray; qt++){
+	
+		for(h = 0; h<nb; h++){
+			Ext.Manager3D_GetName(h, name);
+			if(indexOf(name, channelarray[qt])>=0){
+				Ext.Manager3D_Select(h);
+				
+				
+
+			for(qtt = 0; qtt<vararray; qtt++){
+				if(qtt!=qt){
+					for(m=0;m<nb;m++){
+						Ext.Manager3D_GetName(m, name2);
+						if(indexOf(name2, channelarray[qtt])>=0){
+						Ext.Manager3D_Select(m);
+						
+						}
+					}				
+						errorarray = newArray;
+						Ext.Manager3D_GetSelected(list);
+						errorarray=split(list,":");
+						Array.getStatistics(errorarray, emin, emax, emean, estdDev);
+						
+						if(emin!=emax){
+						
+							Ext.Manager3D_Closest(h,"cc",closestcc);
+							Ext.Manager3D_GetName(closestcc,namecc);
+							Ext.Manager3D_Dist2(h,closestcc,"cc",distcc);
+							Ext.Manager3D_Closest(h,"bb",closestbb);
+							Ext.Manager3D_GetName(closestbb,namebb);
+							Ext.Manager3D_Dist2(h,closestbb,"bb",distbb);
+				
+							setResult("NN_CC"+channelarray[qt]+"_to_"+channelarray[qtt] , resultsrow + pt, namecc);
+							setResult("NN_BB"+channelarray[qt]+"_to_"+channelarray[qtt], resultsrow + pt, namebb);
+							setResult("NNDistance_CC"+channelarray[qt]+"_to_"+channelarray[qtt], resultsrow + pt, distcc);
+							setResult("NNDistance_BB"+channelarray[qt]+"_to_"+channelarray[qtt], resultsrow + pt, distbb);
+	
+							if (do2NN==true) {
+	
+							
+							selectedarray = newArray;
+							Ext.Manager3D_GetSelected(list);
+							selectedarray=split(list,":");
+							Array.getStatistics(selectedarray, amin, amax, amean, astdDev);
+							
+							Ext.Manager3D_DeselectAll();
+							if(amin!=amax){
+	
+								for (t = 0; t < selectedarray.length; t++) {
+									arraycheck = selectedarray[t];
+									if (arraycheck!=closestcc) {
+										Ext.Manager3D_Select(selectedarray[t]);
+									}
+									
+								}
+								Ext.Manager3D_Closest(h,"cc",closestcc);
+								Ext.Manager3D_GetName(closestcc,namecc);
+								Ext.Manager3D_Dist2(h,closestcc,"cc",distcc);
+								Ext.Manager3D_Closest(h,"bb",closestbb);
+								Ext.Manager3D_GetName(closestbb,namebb);
+								Ext.Manager3D_Dist2(h,closestbb,"bb",distbb);
+					
+								setResult("2ndNN_CC"+channelarray[qt]+"_to_"+channelarray[qtt] , resultsrow + pt, namecc);
+								setResult("2ndNN_BB"+channelarray[qt]+"_to_"+channelarray[qtt], resultsrow + pt, namebb);
+								setResult("2ndNNDistance_CC"+channelarray[qt]+"_to_"+channelarray[qtt], resultsrow + pt, distcc);
+								setResult("2ndNNDistance_BB"+channelarray[qt]+"_to_"+channelarray[qtt], resultsrow + pt, distbb);
+								}
+							}
+							
+							
+							
+							
+							Ext.Manager3D_DeselectAll();
+				}
+				}
+			}
+			pt++;
+			}	
+		}
+	}					
+			updateResults();
+			
+	
+}
+*/
+
+
+function allDist(){
+
+	Ext.Manager3D_Count(nb_obj); 
+	
+	
+	qt=0;
+		
+	for(qt = 0; qt<vararray; qt++){
+
+		for(h = 0; h<nb_obj; h++){
+			Ext.Manager3D_GetName(h, name);
+			if(indexOf(name, channelarray[qt])>=0){
+				Ext.Manager3D_Select(h);
+				}
+		}
+		Ext.Manager3D_Distance();
+		Ext.Manager3D_SaveResult("D",ADdir + File.separator + chnamearray[qt]+noExt);
+		Ext.Manager3D_CloseResult("D");
+		Ext.Manager3D_DeselectAll();
+	}
+	
+	
+}
+
+function maskvolume(){
+
+	
+	Ext.Manager3D_SelectAll();
+	Ext.Manager3D_Delete();
+	selectImage("imgext");
+	run("Duplicate...", "title=blur duplicate");
+	
+	if(indexOf(activech, 'channel2') == 0){
+		print('entered');
+		run("Unsharp Mask...", "radius=10 mask=0.30 stack");
+		run("Gaussian Blur 3D...", "x=3 y=3 z=3");
+		run("Subtract Background...", "rolling=50 disable stack");
+		run("Auto Threshold", "method=Otsu white stack use_stack_histogram");
+	}
+
+	else {
+	
+		run("Gaussian Blur 3D...", "x=5 y=5 z=5");
+		//setOption("BlackBackground", true);
+		run("Auto Threshold", "method=Mean white stack use_stack_histogram");
+		//run("3D Simple Segmentation", "low_threshold=1 min_size=750000 max_size=-1");
+		//selectWindow("Seg");
+	}
+	
+	
+	Ext.Manager3D_AddImage();
+	selectImage("imgext");
+	Ext.Manager3D_Measure3D(0,"Vol",maskvol);
+	//selectImage("blur");
+	//close();
+	//selectImage("Bin");
+	//close();
+	//selectImage("Seg");
+	selectImage("blur");
+	saveAs("tiff", dir+File.separator+"Vol_Mask_of_"+activech);
+	close();
+
+	selectWindow(NumbersTableName);
+	size=Table.size;
+	print("step1");
+	if(size>0){
+		cellcheck=Table.getString("Cell", size-1);
+		print("step1.1");
+		if(cellcheck==noExt){
+			Table.set(activech+"_Vol", size-1 , maskvol);
+			Table.update(NumbersTableName);
+			
+	}
+		else {
+		print("step1.2");
+		Table.set("Cell", size, noExt);
+		Table.set(activech+"_Vol", size , maskvol);
+		Table.update(NumbersTableName);
+	}
+	}
+
+	
+
+	else {
+		print("step1.2");
+		Table.set("Cell", size, noExt);
+		Table.set(activech+"_Vol", size , maskvol);
+		Table.update(NumbersTableName);
+	}
+	
+	
+	
+}
+
