@@ -1,0 +1,68 @@
+/*
+ * Macro template to process multiple images in a folder
+ */
+
+#@ File (label = "Input directory", style = "directory") input
+#@ File (label = "Output directory", style = "directory") output
+#@ String (label = "File suffix", value = ".tif") suffix
+
+// See also Process_Folder.py for a version of this code
+// in the Python scripting language.
+
+processFolder(input);
+
+// function to scan folders/subfolders/files to find files with correct suffix
+function processFolder(input) {
+	list = getFileList(input);
+	list = Array.sort(list);
+	for (i = 0; i < list.length; i++) {
+		if(File.isDirectory(input + File.separator + list[i]))
+			processFolder(input + File.separator + list[i]);
+		if(endsWith(list[i], suffix))
+			processFile(input, output, list[i]);
+	}
+}
+
+function processFile(input, output, file) {
+
+open(input + File.separator + list[i]);
+run("3D Manager");
+Ext.Manager3D_SelectAll();
+Ext.Manager3D_Delete();
+chh ="C1-";
+title = getTitle();
+noExt=File.nameWithoutExtension;
+
+run("Split Channels");
+selectImage("C3-"+title);
+run("Duplicate...", "title=blur duplicate");
+run("Maximum...", "radius=10");
+run("Gaussian Blur 3D...", "x=8 y=8 z=8");
+run("Auto Threshold", "method=Huang white stack use_stack_histogram");
+run("3D Simple Segmentation", "low_threshold=1 min_size=2000000 max_size=-1");
+selectImage("Seg");
+run("Make Binary", "method=Default background=Dark black");
+selectImage("Seg");
+run("Dilate", "stack");
+run("Dilate", "stack");
+run("3D Fill Holes");
+selectWindow("Seg");
+run("Invert", "stack");
+
+selectImage("Seg");
+Ext.Manager3D_AddImage();
+Ext.Manager3D_SelectAll();
+Ext.Manager3D_Merge();
+
+selectImage(chh+title);
+Ext.Manager3D_Select(0);
+Ext.Manager3D_Erase();
+run("Merge Channels...", "c1=C1-"+title+" c2=C2-"+title+" c3=C3-"+title+" create ignore");
+saveAs("tif", output+File.separator+noExt+".tif");
+run("Z Project...", "projection=[Max Intensity]");
+//run("Brightness/Contrast...");
+resetMinAndMax();
+saveAs("png", output+File.separator+noExt+"_prj.png");
+close("*");
+
+}
