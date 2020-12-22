@@ -1,5 +1,5 @@
 /*
- * Tested with ImageJ 1.53c
+ * Tested with FIJI/ImageJ 1.53c
  * Java 1.8.0_172 (64bit)
  * Requires 3D ImageJ Suite:
  * J. Ollion, J. Cochennec, F. Loll, C. Escudé, T. Boudier. (2013) TANGO: A Generic Tool for High-throughput 3D Image Analysis for Studying Nuclear Organization. Bioinformatics 2013 Jul 15;29(14):1840-1. doi
