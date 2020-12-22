@@ -1,0 +1,186 @@
+/*
+ * Tested with ImageJ 1.53c
+ * Java 1.8.0_172 (64bit)
+ * Requires 3D ImageJ Suite:
+ * J. Ollion, J. Cochennec, F. Loll, C. Escudé, T. Boudier. (2013) TANGO: A Generic Tool for High-throughput 3D Image Analysis for Studying Nuclear Organization. Bioinformatics 2013 Jul 15;29(14):1840-1. doi
+ * 
+ * analyzes third and second channel of the image.
+ * For question regarding this macro contact Johnny Gan behappyftw@g.ucla.edu
+ * Tested December 2020
+ */
+
+//Variables the user can change
+//Main variables
+threshold_c1 = 4; // threshold multiplier for channel 1
+threshold_c2 = 5; // threshold multiplier for channel 2
+distance = 0.6 // max distance from center of channel 1 partifcle in microns
+
+//secondary variables
+bleach_background = 50; // background for bleach correction
+rollingball = 50; // rolling ball radius
+unsharp_radius = 6; // unsharp mask radius for channel 1 and 2
+unsharp_mask=0.75; // unsharp mask amoount for channel 1 and 2
+
+//set batch mode to speed things up
+setBatchMode(true);
+
+//initialize the 3D manager
+run("3D Manager");
+Ext.Manager3D_MultiSelect();
+
+//Get input file path
+#@ File (label = "Input directory", style = "directory") input
+#@ String (label = "File suffix", value = ".tif") suffix
+
+//Create output folder
+File.makeDirectory(input+File.separator+"Results");
+dir = input+File.separator+"Results"+File.separator; 
+
+processFolder(input);
+
+
+// function to scan folders/subfolders/files to find files with correct suffix
+function processFolder(input) {
+	list = getFileList(input);
+	list = Array.sort(list);
+	for (i = 0; i < list.length; i++) {
+		if(File.isDirectory(input + File.separator + list[i]))
+			processFolder(input + File.separator + list[i]);
+		if(endsWith(list[i], suffix))
+			processFile(input, list[i]);
+	}
+
+saveAs("results",dir+"Final_Results.csv");
+	
+}
+
+function processFile(input, file) {
+
+
+//Clears the 3D Manager just in case and closes all images
+close("*");
+Ext.Manager3D_Reset();	
+
+//open image
+open(input+File.separator+list[i]);
+
+//get image name
+image_name = getTitle();
+image_noEXT = File.nameWithoutExtension;
+
+//set names for each channel based on image name
+c1 = "C1-" + image_name; 
+c2 = "C2-" + image_name;
+c3 = "C3-" + image_name;
+
+
+//create a copy image
+run("Duplicate...", "title=original duplicate");
+
+
+//select original image to edit
+selectImage(image_name);
+
+//split channels to work individually
+run("Split Channels");
+
+
+//Red channel
+//select red channel image
+selectImage(c3);
+
+//create name for bleached corrected image
+bleached_red = "DUP_"+c3;
+
+//filter image
+run("Bleach Correction", "correction=[Simple Ratio] background="+bleach_background);
+run("Subtract Background...", "rolling="+rollingball+" stack");
+run("Unsharp Mask...", "radius="+unsharp_radius+" mask="+unsharp_mask+" stack");
+//get properties for image and set threshold
+selectImage(bleached_red);
+Stack.getStatistics(voxelCount, mean, min, max, stdDev);
+thr = mean + (stdDev*threshold_c1);
+setThreshold(thr, max);
+
+//converts and segments mask
+run("Convert to Mask", "method=Default background=Dark black");
+run("3D Simple Segmentation", "low_threshold=1 min_size=15 max_size=200");
+
+selectImage("Seg");
+Ext.Manager3D_AddImage();
+
+close("Seg");
+close("Bin");
+
+//gets total foci in first channel
+Ext.Manager3D_Count(foci_c1); 
+
+
+//Green Channel
+selectImage(c2);
+
+//filter image
+run("Subtract Background...", "rolling="+rollingball+" stack");
+run("Unsharp Mask...", "radius="+unsharp_radius+" mask="+unsharp_mask+" stack");
+
+//get properties for image and set threshold
+selectImage(c2);
+Stack.getStatistics(voxelCount, mean, min, max, stdDev);
+thr = mean + (stdDev*threshold_c2);
+
+setThreshold(thr, max);
+run("Convert to Mask", "method=Default background=Dark black");
+
+run("3D Simple Segmentation", "low_threshold=1 min_size=15 max_size=200");
+
+selectImage("Seg");
+Ext.Manager3D_AddImage();
+//gets total foci in second channel
+Ext.Manager3D_Count(foci_c1c2);
+foci_c2 = foci_c1c2-foci_c1;
+
+
+
+//C1 to C2
+within_c1c2 = 0;
+
+
+//calculate all distances and record those within a 600nm radius
+for (r = 0; r < foci_c1; r++) {
+	for (g = foci_c1; g < foci_c1c2 ; g++) {
+		Ext.Manager3D_Dist2(r,g,"cc",dist);
+		
+		if (dist<=distance) {
+			within_c1c2 = within_c1c2+1;
+			Ext.Manager3D_Select(r);	
+			Ext.Manager3D_Select(g);	
+
+			break;
+		}
+	}
+}
+
+//Rename selected ROIs and save all ROIs for further use
+Ext.Manager3D_Rename("Selected");
+Ext.Manager3D_SelectAll();
+Ext.Manager3D_Save(dir+image_noEXT+"_ROIs.zip");
+
+
+
+//Create result table
+distinnm = distance*1000;
+row = nResults;
+setResult("Image", row, image_name);
+setResult("Total_Channel_1_foci_number", row, foci_c1);
+setResult("Total_Channel_2_foci_number", row, foci_c2);
+setResult("Total_Foci_Colocalized_within_"+distinnm+"nm", row, within_c1c2);
+
+updateResults();
+
+
+//Close all images and manager
+close("*");
+Ext.Manager3D_Reset();
+
+
+}
