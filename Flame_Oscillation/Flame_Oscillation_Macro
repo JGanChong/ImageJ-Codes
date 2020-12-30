@@ -1,5 +1,6 @@
 /*  This macro uses a user create line to calculate all the pixel values and find the maxima value along that line for each slice. The macro then outputs a result table containing the x position and value of the pixel with the highest intensity at that slice along the user generated line.
  *  Image prep:
+ *  If image is inverted (object of interest is black), invert colors first. (Edit>Invert)
  *  If flickering, run Bleach correction using Histogram matching:
  *  Image>Adjust>Bleach Correction>Histogram Matching
  *  
