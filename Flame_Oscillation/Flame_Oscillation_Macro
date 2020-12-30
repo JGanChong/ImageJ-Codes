@@ -1,0 +1,63 @@
+/*  Image prep:
+ *  If flickering, run Bleach correction using Histogram matching:
+ *  Image>Adjust>Bleach Correction>Histogram Matching
+ *  
+ *  Macro Instructions:
+ * Create a line horizontally along the top of the flame that covers a little more than the leftmost and rightmost point that the flame touches then run macro
+ *  
+ * Macro tested with ImageJ 1.53c, Java 1.8.0_162 (64bit) Windows 10
+ * Macro by Johnny Gan Chong email:behappyftw@g.ucla.edu 
+ * December2020
+ */
+
+//prep
+setOption("ExpandableArrays", true);//set arrays to be exapandable
+
+xvalues = newArray; //array to store the x positions
+px_val = newArray; //array to store the intensity values
+
+
+//image properties
+Stack.getDimensions(width, height, channels, slices, frames); //get amount of slices (frames)
+getLine(x1, y1, x2, y2, lineWidth); //get line positions
+
+
+
+//iterate ove each slice 
+for (p = 1; p <= slices; p++) {
+
+
+	Stack.setSlice(p);
+	
+	//recrate the line in case it was erased
+	makeLine(x1, y1, x2, y2);
+	
+	line_pix_val = getProfile(); //get pixel values along line
+	
+
+	maxval=0;
+
+	//iterate over all values in array and finds the maximum value pixel and its position
+	for (m=0; m<line_pix_val.length; m++){
+		lp1 = line_pix_val[m];		
+		
+		if (lp1>maxval) {
+			maxval = lp1; //max values
+			maxvalx = m; //position of pixel with max value
+		}
+	}
+
+	//save results
+	row = nResults;
+	setResult("X_Pos", row, maxvalx);
+	setResult("Pix_Val", row, maxval);
+	  
+	}
+	
+
+
+updateResults();
+
+
+
+
