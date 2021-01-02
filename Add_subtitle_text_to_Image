@@ -1,0 +1,25 @@
+//Tested with with ImageJ/FIJI 1.53c, Java 1.8.0_172 (64bit), IJ Macro
+//Create window for user to write text
+Dialog.create("Subtitle");
+Dialog.addString("Subtitle Text", "text");
+Dialog.show();
+subtitle = Dialog.getString();
+
+//get number of characters
+lengthtext = lengthOf(subtitle);
+
+//get image properties
+getDimensions(width, height, channels, slices, frames);
+
+//automatically assign font size using image size and a proportion
+size = height/20; //replace height/20 with a number to assign manually a font size
+
+setColor("black"); //set font color to black and font size and font
+setFont("SansSerif", size);
+
+//automatically find an optimal x,y coordinate to write the subtitle centered
+Twidth = (width/2)-(lengthtext*(size/5));
+Theight = (height/12)*11;
+
+//writes the text
+drawString(subtitle,Twidth, Theight);
