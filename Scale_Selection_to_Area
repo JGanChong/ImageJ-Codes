@@ -1,0 +1,18 @@
+//Tested with ImageJ 1.53g.
+//Scaled the selection to match a desired area
+
+target_area = 5;
+//Get area of selection
+Roi.getContainedPoints(xpoints, ypoints);
+area_pixel= xpoints.length;
+
+//get pixel size in microns
+getPixelSize(unit, pixelWidth, pixelHeight);
+
+//Adjust area to microns instead of pixels
+area_microns = area_pixel*pixelWidth*pixelHeight;
+//Calculate the scale factor
+scale_factor = Math.sqrt(target_area/area_microns);
+
+//scale image
+run("Scale... ", "x="+scale_factor+" y="+scale_factor+" centered");
