@@ -1,5 +1,5 @@
 //Tested with ImageJ 1.53g.
-//Scaled the selection to match a desired area
+//Scales the selection to match a desired area
 
 target_area = 5;
 //Get area of selection
