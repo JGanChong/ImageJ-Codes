@@ -1,5 +1,6 @@
 //Tested with ImageJ 1.53g.
 //Scales the selection to match a desired area
+//Target area unit is whatever unit the image has in the properties
 
 target_area = 5;
 //Get area of selection
