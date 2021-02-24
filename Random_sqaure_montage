@@ -1,0 +1,27 @@
+//Tested with imageJ 1.53g
+//Image must be a stack
+
+//Target widht/height
+square_size = 50;
+
+//get image properties
+title = getTitle();
+Stack.getDimensions(width, height, channels, slices, frames);
+
+//create area so that square isnt outside the image
+workable_x = width-square_size;
+workable_y = height-square_size;
+
+//create crops
+for (i = 1; i <= slices; i++) {
+	rand_x = random*workable_x;
+	rand_y = random*workable_y;
+	selectImage(title);
+	makeRectangle(rand_x, rand_y, square_size, square_size);
+	run("Duplicate...", "title=ToStackMontage duplicate range="+i+"-"+i);
+}
+
+//crops to stack
+run("Images to Stack", "method=[Copy (center)] name=Montageable title=ToStackMontage");
+//stack to montage
+run("Make Montage...");
