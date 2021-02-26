@@ -1,0 +1,87 @@
+//Tested using ImageJ 1.53c
+//Opens images and ask user to select ROIs, save area of ROIs and calculate area fraction for each. saves image and results
+
+#@ File (label = "Input directory", style = "directory") input
+#@ File (label = "Output directory", style = "directory") output
+#@ String (label = "File suffix", value = ".tif") suffix
+
+
+processFolder(input);
+
+
+function processFolder(input) {
+	list = getFileList(input);
+	list = Array.sort(list);
+	for (i = 0; i < list.length; i++) {
+		if(File.isDirectory(input + File.separator + list[i]))
+			processFolder(input + File.separator + list[i]);
+		if(endsWith(list[i], suffix))
+			processFile(input, output, list[i]);
+	}
+}
+
+function processFile(input, output, file) {
+	//******User varialbes
+	rolling_ball = 50;
+	gaussian = 2;
+	
+	
+	//Get image properties
+	title = getTitle();
+	noEXT = File.nameWithoutExtension;
+	image_area = getHeight()*getWidth();
+	
+	
+	//*****Filters
+	//Add two slacshes before a filter if you dont want to use it
+	run("Gaussian Blur...", "sigma="+gaussian);
+	run("Subtract Background...", "rolling="+rolling_ball);
+	//Save Filtered Image
+	selectImage(title);
+	saveAs("tiff", output+File.separator+noEXT+".tiff");
+	
+	//loop over the ROI selection
+	calculate=false;
+	while (calculate==false) {
+		area = ROISelector();
+		fraction = (area/image_area)*100;
+		Dialog.createNonBlocking("Controls");
+		Options = newArray("Make another ROI", "Next Image");
+		Dialog.addRadioButtonGroup("Options", Options, 2, 1, "Make another ROI");
+		Dialog.show();
+		
+		next = Dialog.getRadioButton;
+	
+		row = nResults;
+		setResult("Cell", row, noEXT);
+		setResult("Area_pixels", row, area);
+		setResult("Percent_Fraction", row, fraction);
+	
+		if (next=="Make another ROI") {
+			
+		}
+		if (next=="Next Image") {
+			calculate = true;
+			close();
+			updateResults();
+		}
+		
+	
+		
+		
+	}
+	
+	saveAs("Results", output+File.separator+"Results.csv");
+	
+	
+	
+	//ROI Selection function
+	function ROISelector() { 
+	
+		waitForUser("Select ROI. Press OK after selection");
+		Roi.getContainedPoints(xpoints, ypoints);
+		area = xpoints.length;
+		return area;
+	}
+
+}
