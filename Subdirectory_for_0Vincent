@@ -1,0 +1,22 @@
+SourceDir = "C:/Users/johnn/Pictures/New_folder/";
+list = getFileList(SourceDir);
+subfolders = newArray();
+count = 0;
+for(i = 0; i < list.length; i++) {
+	if (endsWith(list[i], "/")){
+		subfolders[count]=list[i];
+		count++;
+	}
+}
+Array.print(subfolders);
+
+print(SourceDir + subfolders[0]);
+end = indexOf(subfolders[0], "/");
+new=substring(subfolders[0],0, end);
+
+print(new+"_cropped");
+print(SourceDir + new+"_cropped");
+File.makeDirectory(SourceDir + new+"_cropped");
+
+
+
