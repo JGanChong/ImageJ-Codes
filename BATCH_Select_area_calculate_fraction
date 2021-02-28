@@ -5,7 +5,7 @@
 #@ File (label = "Output directory", style = "directory") output
 #@ String (label = "File suffix", value = ".tif") suffix
 
-
+run("Set Measurements...", "area area_fraction redirect=None decimal=6");
 processFolder(input);
 
 
@@ -30,7 +30,7 @@ function processFile(input, output, file) {
 	//Get image properties
 	title = getTitle();
 	noEXT = File.nameWithoutExtension;
-	image_area = getHeight()*getWidth();
+
 	
 	
 	//*****Filters
@@ -39,13 +39,13 @@ function processFile(input, output, file) {
 	run("Subtract Background...", "rolling="+rolling_ball);
 	//Save Filtered Image
 	selectImage(title);
-	saveAs("tiff", output+File.separator+noEXT+".tiff");
+	saveAs("tiff", output+File.separator+noEXT+"_FLT.tiff");
 	
 	//loop over the ROI selection
 	calculate=false;
 	while (calculate==false) {
-		area = ROISelector();
-		fraction = (area/image_area)*100;
+		ROISelector();
+		
 		Dialog.createNonBlocking("Controls");
 		Options = newArray("Make another ROI", "Next Image");
 		Dialog.addRadioButtonGroup("Options", Options, 2, 1, "Make another ROI");
@@ -53,17 +53,15 @@ function processFile(input, output, file) {
 		
 		next = Dialog.getRadioButton;
 	
-		row = nResults;
+		row = nResults-1;
 		setResult("Cell", row, noEXT);
-		setResult("Area_pixels", row, area);
-		setResult("Percent_Fraction", row, fraction);
-	
+			
 		if (next=="Make another ROI") {
 			
 		}
 		if (next=="Next Image") {
 			calculate = true;
-			close();
+			close("*");
 			updateResults();
 		}
 		
@@ -80,9 +78,15 @@ function processFile(input, output, file) {
 	function ROISelector() { 
 	
 		waitForUser("Select ROI. Press OK after selection");
-		Roi.getContainedPoints(xpoints, ypoints);
-		area = xpoints.length;
-		return area;
+		setOption("BlackBackground", true);
+		run("Duplicate...", "title=ROI_area");
+		run("Threshold...");
+		waitForUser("Adjust threshold. Press Apply. Press OK afterwards here");
+		run("Measure");
+		close();
+		selectImage(noEXT+"_FLT.tiff");
+		
+
 	}
 
 }
