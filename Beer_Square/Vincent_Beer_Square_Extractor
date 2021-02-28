@@ -1,26 +1,20 @@
 /* Tested with ImageJ 1.53g Java 1.8.0_172 64bit
- *  For Vincent Meis 2021 
- *  Beer filtering magic
- *  By Johnny Gan 2021
- *  behappyftw@g.ucla.edu
+ * 
+ * 
+ * 
  */
-
- //set settings
 run("Select None");
 setForegroundColor(255, 255, 255);
 setBackgroundColor(0, 0, 0);
-
-//get image name
+run("Options...", "iterations=1 count=1 black do=Nothing");
 title= getTitle();
 noEXT = File.nameWithoutExtension;
 
-//create duplicates and extract Red channel (best contrast)
-run("Duplicate...", "title=Dummy duplicate");
+run("Duplicate...", "title=Dummy");
 run("RGB Stack");
-run("Duplicate...", "title=BWDummy duplicate range=1-1 use");
-run("Duplicate...", "title=TESTER duplicate range=1-1 use");
+run("Duplicate...", "title=BWDummy");
+run("Duplicate...", "title=TESTER");
 
-//use TESTER duplicate to see whether the petri dish FOV is in the side or center
 selectImage("TESTER");
 run("Auto Threshold", "method=Yen white");
 run("Analyze Particles...", "size=50000-Infinity circularity=0.00-1.00 clear add composite");
@@ -32,27 +26,25 @@ for (i = 0; i < total_rois; i++) {
 	roiManager("Select", i);
 	Roi.getContainedPoints(xpoints, ypoints);
 	area = xpoints.length;
-	if (area > 750000) {
+	if (area > 600000) {
 		side_petri = true;
 		break;
 	}
 }
+
 close("Tester");
 
 
-//Threshold the image to crop it from the light and get the in focus squares
 selectImage("BWDummy");
 run("8-bit");
 setAutoThreshold("Default dark");
 setThreshold(215, 255,"black & white");
 
-//If its in the center (ie not in the side) 
 if (side_petri == false) {
 
-	//analyze threshgolded image and remove particles smaller than 50000 and not very circular (to get the bright light spot)
+	
 	run("Analyze Particles...", "size=50000-Infinity circularity=0.50-1.00 clear add composite");
-
-	//find coordinates of the light spot and delete row and column (to delete the squares that are out of focus using the light as reference point)
+	
 	roiManager("Select", 0);
 	Roi.getBounds(x, y, width, height);
 	
@@ -71,38 +63,42 @@ if (side_petri == false) {
 	selectImage("Dummy");
 	makeRectangle(1700, 0, 260, 1080);
 	run("Clear", "slice");
-
-	//after clearing those row and columns, apply a gaussian blur and unsharp mask to enhacnce the OTSU threshold
+	
 	run("Select None");
 	run("Gaussian Blur...", "sigma=5");
 	run("Unsharp Mask...", "radius=5 mask=0.80");
 	run("Auto Threshold", "method=Otsu white");
-
-
-	//Analyze now for the squares looking for atleast size 180000 and 0.5 circularity
+	
 	run("Analyze Particles...", "size=180000-Infinity circularity=0.50-1.00 clear add composite");
 	run("Select None");
 }
 
 
-//Do if in the side of petri dish
 else {
-	//create duplicate copies to work on
 	selectImage("Dummy");
-	run("Duplicate...", "title=Dummy3 duplicate");
-	run("Duplicate...", "title=Dummy2 duplicate");
-	//threshold image and analyze the light and outer bright stuff
+	run("Duplicate...", "title=Dummy1");
+	selectImage("Dummy");
+	close();
+	selectImage("Dummy1");
+	rename("Dummy");
+	run("Duplicate...", "title=Dummy3");
+	run("Duplicate...", "title=Dummy2");
 	setThreshold(250, 255,"black & white");
 	run("Analyze Particles...", "size=50000-Infinity circularity=0.20-1.00 clear add composite");
 	close("Dummy2");
 	selectImage("Dummy");
 	roiManager("Select", 0);
 	Roi.getBounds(x, y, width, height);
-
-	//remove light and outer stuff
+	
 	image_width = getWidth();
 	image_height = getHeight();
+	
 	selectImage("Dummy");
+	run("Select None");
+	run("Gaussian Blur...", "sigma=5");
+	run("Unsharp Mask...", "radius=5 mask=0.80");
+	run("Auto Threshold", "method=Otsu white");
+	
 	makeRectangle(0, 0, image_width, height);
 	run("Clear", "slice");
 	
@@ -119,16 +115,14 @@ else {
 		
 	}
 	
-	//same, filters and then run first segmentation to find all squares
-	run("Select None");
-	run("Gaussian Blur...", "sigma=5");
-	run("Unsharp Mask...", "radius=5 mask=0.80");
-	run("Auto Threshold", "method=Otsu white");
 	
+
+
+	selectImage("Dummy");
+	run("Select None");
+	//run("Analyze Particles...", "size=95000-180000 circularity=0.10-1.00 clear add composite");
 	run("Analyze Particles...", "size=20000-180000 circularity=0.00-1.00 exclude clear add composite");
 	run("Select None");
-
-	//Go over all squares and find the biggest square which is the main square
 	total_rois=roiManager("count");
 	garea = 0;
 	for (t = 0; t < total_rois; t++) {
@@ -145,27 +139,30 @@ else {
 			gheight=height;
 		}		
 	}
-
-	//Crop image so it follows the main square and to the right (deletes everything on the left and top of mains quare)
+	
 	selectImage("Dummy3");
+	run("Select None");
+	run("Gaussian Blur...", "sigma=5");
+	run("Unsharp Mask...", "radius=5 mask=0.80");
+	run("Auto Threshold", "method=Otsu white");
+	
 	makeRectangle(0, 0, image_width, gY-20);
 	run("Clear", "slice");
 	
 	selectImage("Dummy3");
 	makeRectangle(0, 0, gX-20, image_height);
 	run("Clear", "slice");
-
-
-	//run official segmentation
-	run("Select None");
-	run("Gaussian Blur...", "sigma=5");
-	run("Unsharp Mask...", "radius=5 mask=0.80");
-	run("Auto Threshold", "method=Otsu white");
 	
+
+	selectImage("Dummy3");
+	setForegroundColor(255, 255, 255);
+	setBackgroundColor(0, 0, 0);
+	run("Fill Holes");
+	run("Select None");
+	//run("Analyze Particles...", "size=95000-180000 circularity=0.10-1.00 clear add composite");
 	run("Analyze Particles...", "size=20000-180000 circularity=0.00-1.00 exclude clear add composite");
 	run("Select None");
 
-	//Remove any ROI that are outside the delimiter line
 	total_rois=roiManager("count");
 	for (t = 0; t < total_rois; t++) {
 		roiManager("Select", t);
@@ -182,7 +179,7 @@ else {
 	
 }
 
-//Extract the image of the ROI and clears whats outside of it and saves the image
+
 total_rois=roiManager("count");
 
 for (i = 0; i < total_rois; i++) {
@@ -197,7 +194,6 @@ for (i = 0; i < total_rois; i++) {
 
 setForegroundColor(255, 0, 0);
 
-//Draws in the original image an outline of the ROIs and saves for quality control
 total_rois=roiManager("count");
 for (i = 0; i < total_rois; i++) {
 	selectImage(title);
@@ -211,6 +207,5 @@ setForegroundColor(255, 255, 255);
 setBackgroundColor(0, 0, 0);
 //saveAs("bmp", output+File.separator+"ALL_BMP"+File.separator+noEXT+"_ROI"+i+".bmp");
 
-//closes everything
 close("*");
 
