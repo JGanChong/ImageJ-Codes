@@ -22,15 +22,19 @@ function processFolder(input) {
 
 function processFile(input, output, file) {
 	open(input+File.separator+list[i]);
+	
 	//******User varialbes
 	rolling_ball = 50;
 	gaussian = 2;
-	
+	lower_threshold = 60;
 	
 	//Get image properties
 	title = getTitle();
 	noEXT = File.nameWithoutExtension;
-
+	
+	run("Split Channels");
+	run("Merge Channels...", "c2=[C2-"+title+"] c3=[C1-"+title+"] create ignore");
+	rename(title);
 	
 	
 	//*****Filters
@@ -44,7 +48,7 @@ function processFile(input, output, file) {
 	//loop over the ROI selection
 	calculate=false;
 	while (calculate==false) {
-		ROISelector();
+		ROISelector(lower_threshold);
 		
 		Dialog.createNonBlocking("Controls");
 		Options = newArray("Make another ROI", "Next Image");
@@ -75,13 +79,19 @@ function processFile(input, output, file) {
 	
 	
 	//ROI Selection function
-	function ROISelector() { 
-	
+	function ROISelector(lower_threshold) { 
+		run("Select None");
 		waitForUser("Select ROI. Press OK after selection");
+		isSelection=is("area");
+		if (isSelection==false) {
+			run("Select All");
+		}
 		setOption("BlackBackground", true);
+		Stack.setChannel(1);
 		run("Duplicate...", "title=ROI_area");
-		run("Threshold...");
-		waitForUser("Adjust threshold. Press Apply. Press OK afterwards here");
+		exit;
+		getStatistics(area, mean, min, max, std, histogram);
+	  	setThreshold(lower_threshold, max);
 		run("Measure");
 		close();
 		selectImage(noEXT+"_FLT.tiff");
