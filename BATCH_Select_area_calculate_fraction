@@ -89,7 +89,7 @@ function processFile(input, output, file) {
 		setOption("BlackBackground", true);
 		Stack.setChannel(1);
 		run("Duplicate...", "title=ROI_area");
-		exit;
+		
 		getStatistics(area, mean, min, max, std, histogram);
 	  	setThreshold(lower_threshold, max);
 		run("Measure");
