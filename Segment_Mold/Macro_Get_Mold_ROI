@@ -1,0 +1,60 @@
+/* tested with imageJ 1.53g
+ *  Create a line equivalent to 5cm and run the macro to segment dark mold over a light bread and background. try to avoid shadows but the macro will try and account for that. 
+ *  better results with a transparent ruler
+ *  
+ *  Macro by Johnny Gan behappyftw@g.ucla.edu March 2021
+ */
+
+setBatchMode(true);
+
+//GEt image properties
+title = getTitle();
+
+//get line length to set scale
+getLine(x1, y1, x2, y2, lineWidth);
+dx = x2-x1;
+dy = y2-y1;
+line_length = sqrt(dx*dx+dy*dy);
+
+//duplicate image to create working copies
+run("Duplicate...", "title=Dummy");
+run("Duplicate...", "title=HSV");
+
+//Get rid of shadows true hue and saturation
+run("HSB Stack");
+Stack.setChannel(1);
+run("Duplicate...", "title=HUE");
+run("Auto Threshold", "method=Otsu white");
+run("Invert");
+run("Analyze Particles...", "size=200000-Infinity exclude clear add");
+
+//Start working on the mold segmentation
+selectImage("Dummy");
+
+//use RGB to find the brigthess and darkest spot
+run("RGB Stack");
+run("Z Project...", "projection=[Max Intensity]");
+run("Set Scale...", "distance="+line_length+" known=5 unit=cm");
+run("8-bit");
+//filtering
+run("Gaussian Blur...", "sigma=5");
+//thresholding image to get mold
+run("Auto Threshold", "method=Yen white");
+//Select all bread image to remove shadow
+roiManager("Select", 0);
+//clears outside that is not bread
+run("Clear Outside");
+
+//get ROI of mold
+run("Invert");
+setOption("BlackBackground", true);
+run("Select None");
+run("Analyze Particles...", "size=20000-Infinity exclude clear add composite");
+
+//selects original image, sets scale and displays ROI
+selectImage(title);
+run("Set Scale...", "distance="+line_length+" known=5 unit=cm");
+print(line_length);
+close("\\Others");
+roiManager("Select", 0);
+setBatchMode(false);
