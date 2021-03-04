@@ -208,4 +208,4 @@ setForegroundColor(255, 255, 255);
 setBackgroundColor(0, 0, 0);
 //saveAs("bmp", output+File.separator+"ALL_BMP"+File.separator+noEXT+"_ROI"+i+".bmp");
 
-//close("*");
+close("*");
