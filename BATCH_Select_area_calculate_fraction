@@ -23,6 +23,9 @@ function processFolder(input) {
 function processFile(input, output, file) {
 	open(input+File.separator+list[i]);
 	
+	
+	
+	
 	//******User varialbes
 	rolling_ball = 50;
 	gaussian = 2;
@@ -32,6 +35,7 @@ function processFile(input, output, file) {
 	title = getTitle();
 	noEXT = File.nameWithoutExtension;
 	
+	run("Z Project...", "projection=[Max Intensity]");
 	run("Split Channels");
 	run("Merge Channels...", "c2=[C2-"+title+"] c3=[C1-"+title+"] create ignore");
 	rename(title);
