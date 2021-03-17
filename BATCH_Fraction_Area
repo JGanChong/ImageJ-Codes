@@ -1,0 +1,70 @@
+//Tested using ImageJ 1.53c
+//Opens images and ask user to select ROIs, save area of ROIs and calculate area fraction for each. saves image and results
+
+#@ File (label = "Input directory", style = "directory") input
+#@ File (label = "Output directory", style = "directory") output
+#@ String (label = "File suffix", value = ".tif") suffix
+
+run("Set Measurements...", "area area_fraction redirect=None decimal=6");
+processFolder(input);
+
+
+function processFolder(input) {
+	list = getFileList(input);
+	list = Array.sort(list);
+	for (i = 0; i < list.length; i++) {
+		if(File.isDirectory(input + File.separator + list[i]))
+			processFolder(input + File.separator + list[i]);
+		if(endsWith(list[i], suffix))
+			processFile(input, output, list[i]);
+	}
+}
+
+function processFile(input, output, file) {
+	open(input+File.separator+list[i]);
+	
+	
+	
+	
+	//******User varialbes
+	rolling_ball = 50;
+	gaussian = 2;
+	lower_threshold = 60;
+	
+	//Get image properties
+	run("Z Project...", "projection=[Max Intensity]");
+	title = getTitle();
+	noEXT = File.nameWithoutExtension;
+	
+
+	run("Split Channels");
+	run("Merge Channels...", "c2=[C2-"+title+"] c3=[C1-"+title+"] create ignore");
+	rename(title);
+	
+	
+	//*****Filters
+	//Add two slacshes before a filter if you dont want to use it
+	run("Gaussian Blur...", "sigma="+gaussian);
+	run("Subtract Background...", "rolling="+rolling_ball);
+	//Save Filtered Image
+	selectImage(title);
+	saveAs("tiff", output+File.separator+noEXT+"_FLT.tiff");
+	
+	//loop over the ROI selection
+
+
+	run("Select None");
+	setOption("BlackBackground", true);
+	Stack.setChannel(1);
+	getStatistics(area, mean, min, max, std, histogram);
+	setThreshold(lower_threshold, max);
+	run("Measure");
+
+		
+
+	
+	saveAs("Results", output+File.separator+"Results.csv");
+	
+
+
+}
