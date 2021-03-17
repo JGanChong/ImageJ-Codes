@@ -66,6 +66,6 @@ function processFile(input, output, file) {
 	
 	saveAs("Results", output+File.separator+"Results.csv");
 	
-
+	close("*");
 
 }
