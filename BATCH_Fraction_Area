@@ -56,11 +56,12 @@ function processFile(input, output, file) {
 	run("Select None");
 	setOption("BlackBackground", true);
 	Stack.setChannel(1);
+	run("Duplicate...", "title=ROI_area");
 	getStatistics(area, mean, min, max, std, histogram);
 	setThreshold(lower_threshold, max);
 	run("Measure");
-
-		
+	close();
+	selectImage(noEXT+"_FLT.tiff");	
 
 	
 	saveAs("Results", output+File.separator+"Results.csv");
