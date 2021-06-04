@@ -1,0 +1,29 @@
+//Created by Johnny Gan 
+//Tested on ImageJ version 1.53g
+//For https://www.reddit.com/r/ImageJ/comments/nsex5g/how_to_measure_average_rgb_values_for_all/
+
+nROI = roiManager("count");
+roiManager("deselect");
+row = nResults;
+rgb_arr = newArray("Red","Green","Blue");
+for (i = 0; i < nROI; i++) {
+	roiManager("select", i);
+	run("Measure");
+}
+run("Select None");
+run("Duplicate...", "title=RGB");
+run("RGB Stack");
+
+for (i = 0; i < nROI; i++) {
+	roiManager("select", i);
+	for (sli = 1; sli <= 3; sli++) {
+		
+		setSlice(sli);
+		getStatistics(area,mean , min, max, std, histogram);
+		setResult(rgb_arr[sli-1], row+i, mean);
+		
+	}
+
+}
+
+close("RGB");
