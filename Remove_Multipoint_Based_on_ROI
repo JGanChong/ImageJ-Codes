@@ -1,0 +1,22 @@
+//Delete Multi-Points based on ROI Selection
+//Created by Johnny Gan June 2021 behappyftw@g.ucla.edu
+//Import/Make multipoint selection. Run MAcro. Create a ROI. Macro will clear all multipoints outside the ROI.
+
+Roi.getCoordinates(xpoints, ypoints);
+Overlay.addSelection("red");
+Overlay.show;
+run("Select None");
+setTool("rectangle");
+waitForUser("Select Region That you care about. Then press OK");
+good_x = newArray;
+good_y = newArray;
+count = 0;
+for (i = 0; i < xpoints.length; i++) {
+	if (Roi.contains(xpoints[i], ypoints[i])) {
+		good_x[count]=xpoints[i];
+		good_y[count]=ypoints[i];
+		count+=1;
+	}
+}
+makeSelection("point",good_x,good_y);
+Overlay.remove;
